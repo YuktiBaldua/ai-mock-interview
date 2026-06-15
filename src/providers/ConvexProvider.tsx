@@ -1,14 +1,15 @@
-'use client'
+"use client";
 
-import { ConvexProvider as ConvexClientProvider } from 'convex/react'
-import { ConvexReactClient } from 'convex/react'
+import { ReactNode } from "react";
+import { ConvexReactClient, ConvexProvider } from "convex/react";
 
-const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
+// Initializes the connection to your running Convex backend
+const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
-export function ConvexProvider({ children }: { children: React.ReactNode }) {
+export function ConvexClientProvider({ children }: { children: ReactNode }) {
   return (
-    <ConvexClientProvider client={convex}>
+    <ConvexProvider client={convex}>
       {children}
-    </ConvexClientProvider>
-  )
+    </ConvexProvider>
+  );
 }

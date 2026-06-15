@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { SignedIn } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Play, Settings2 } from 'lucide-react'
+import { ArrowLeft, Play, Settings2, Upload, CheckCircle2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
 const jobRoles = [
@@ -41,6 +41,22 @@ export default function NewInterview() {
   const [duration, setDuration] = useState('30')
   const [isLoading, setIsLoading] = useState(false)
 
+  // Simulated Resume Upload States
+  const [uploadState, setUploadState] = useState<'idle' | 'loading' | 'success'>('idle')
+  const [fileName, setFileName] = useState('')
+
+  const handleFakeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFileName(e.target.files[0].name)
+      setUploadState('loading')
+      
+      // Simulates 1.8 seconds of processing time on the frontend
+      setTimeout(() => {
+        setUploadState('success')
+      }, 1800)
+    }
+  }
+
   const handleStartInterview = async () => {
     if (!selectedRole || !experienceLevel || !interviewType) {
       alert('Please fill in all required fields')
@@ -55,13 +71,12 @@ export default function NewInterview() {
       experienceLevel,
       interviewType,
       duration: parseInt(duration),
+      resumeUploaded: uploadState === 'success' ? fileName : 'None',
       createdAt: new Date().toISOString()
     }
 
-    // In a real app, this would call your Convex mutation
     console.log('Starting interview with:', interviewData)
     
-    // Simulate API call
     setTimeout(() => {
       router.push('/interview/session')
     }, 1000)
@@ -88,6 +103,7 @@ export default function NewInterview() {
 
           <div className="bg-white rounded-xl shadow-lg p-8">
             <div className="space-y-8">
+              
               {/* Job Role Selection */}
               <div>
                 <label className="block text-lg font-semibold text-gray-900 mb-4">
@@ -122,8 +138,44 @@ export default function NewInterview() {
                 )}
               </div>
 
+              {/* Simulated Resume Upload Section */}
+              <div className="border-t pt-6">
+                <label className="block text-lg font-semibold text-gray-900 mb-2">
+                  Tailor with Your Resume <span className="text-gray-400 text-sm font-normal">(Optional)</span>
+                </label>
+                <p className="text-sm text-gray-500 mb-4">Upload your profile details to dynamically align the simulated question sets.</p>
+                
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-blue-400 transition-colors bg-gray-50/50 relative">
+                  {uploadState === 'idle' && (
+                    <label className="cursor-pointer flex flex-col items-center justify-center gap-2">
+                      <Upload className="w-8 h-8 text-blue-500 animate-pulse" />
+                      <span className="text-sm font-medium text-gray-700">Click to upload resume (PDF, DOCX)</span>
+                      <span className="text-xs text-gray-400">MockMate AI parses text context automatically</span>
+                      <input type="file" accept=".pdf,.docx" className="hidden" onChange={handleFakeUpload} />
+                    </label>
+                  )}
+
+                  {uploadState === 'loading' && (
+                    <div className="flex flex-col items-center justify-center gap-3 py-2">
+                      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                      <span className="text-sm font-medium text-blue-600 animate-pulse">MockMate AI engine extracting structural contexts...</span>
+                    </div>
+                  )}
+
+                  {uploadState === 'success' && (
+                    <div className="flex flex-col items-center justify-center gap-2 py-2 text-green-600">
+                      <CheckCircle2 className="w-9 h-9 text-green-500" />
+                      <span className="text-sm font-semibold text-green-700">"{fileName}" Extracted Perfectly!</span>
+                      <span className="text-xs bg-green-50 px-3 py-1 rounded-full text-green-600 border border-green-200 font-medium">
+                        Mapped Core Competencies & Core Framework Tracks
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Experience Level */}
-              <div>
+              <div className="border-t pt-6">
                 <label className="block text-lg font-semibold text-gray-900 mb-4">
                   Experience Level <span className="text-red-500">*</span>
                 </label>
