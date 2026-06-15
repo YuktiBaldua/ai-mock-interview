@@ -109,9 +109,9 @@ export default function InterviewSession() {
               <div className="avatar-container rounded-2xl p-8 flex-1 flex flex-col justify-center items-center">
                 <div className="w-64 h-64 bg-gradient-to-br from-blue-400 to-purple-600 rounded-full flex items-center justify-center mb-6 relative">
                   {/* Placeholder for Akool Avatar */}
-                  <div className="w-56 h-56 bg-white/20 rounded-full flex items-center justify-center">
-                    <div className="text-6xl">👩‍💼</div>
-                  </div>
+                  <div className="w-56 h-56 bg-black rounded-full flex items-center justify-center overflow-hidden">
+  <video src="/avatar-loop.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover" />
+</div>
                   
                   {/* Speaking indicator */}
                   {isAvatarSpeaking && (
