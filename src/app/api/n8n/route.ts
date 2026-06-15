@@ -5,7 +5,6 @@ import aj from '@/lib/arcjet'
 
 export async function POST(req: NextRequest) {
   try {
-    // ─── AWAIT AUTH HANDSHAKE FOR MODERN CLERK CONTEXT ────────────────
     const authObject = await auth()
     const userId = authObject?.userId
 
@@ -31,7 +30,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { event, data } = body
 
-    // Trigger appropriate n8n workflow based on event
     switch (event) {
       case 'interview.scheduled':
         await n8nWorkflow.onInterviewScheduled(data)

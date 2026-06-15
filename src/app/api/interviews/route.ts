@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs'
+import { auth } from '@clerk/nextjs/server'
+import { akoolAPI } from '@/lib/akool'
 import aj from '@/lib/arcjet'
 
 export async function POST(req: NextRequest) {
   try {
-    // ArcJet protection
+    const authObject = await auth()
+    const userId = authObject?.userId
+
     const decision = await aj.protect(req, {
-      userId: auth().userId || 'anonymous',
+      userId: userId || 'anonymous',
       requested: 1,
     })
 
@@ -17,7 +20,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { userId } = auth()
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -26,89 +28,50 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { jobRole, experienceLevel, interviewType, duration } = body
+    const { action, sessionId, text, emotion } = body
 
-    // Validate required fields
-    if (!jobRole || !experienceLevel || !interviewType || !duration) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
+    if (action === 'create') {
+      const session = await akoolAPI.createAvatarSession({
+        avatarId: 'professional-interviewer',
+        voiceId: 'female-professional',
+        quality: 'high',
+        background: 'office'
+      })
+
+      return NextResponse.json({
+        success: true,
+        sessionId: session.sessionId,
+        streamUrl: session.streamUrl,
+        status: session.status
+      })
     }
 
-    // Create interview session
-    const interviewData = {
-      userId,
-      jobRole,
-      experienceLevel,
-      interviewType,
-      duration,
-      status: 'scheduled',
-      createdAt: new Date().toISOString(),
+    if (action === 'speak' && sessionId && text) {
+      await akoolAPI.sendMessage({
+        sessionId,
+        text,
+        emotion: emotion || 'neutral'
+      })
+      return NextResponse.json({ success: true })
     }
 
-    // In a real implementation, this would use Convex mutations
-    console.log('Creating interview:', interviewData)
+    if (action === 'status' && sessionId) {
+      const status = await akoolAPI.getSessionStatus(sessionId)
+      return NextResponse.json(status)
+    }
 
-    return NextResponse.json({
-      success: true,
-      interviewId: 'mock-interview-id',
-      message: 'Interview session created successfully'
-    })
+    if (action === 'end' && sessionId) {
+      await akoolAPI.endSession(sessionId)
+      return NextResponse.json({ success: true })
+    }
 
-  } catch (error) {
-    console.error('Error creating interview:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: 'Invalid action' },
+      { status: 400 }
     )
-  }
-}
-
-export async function GET(req: NextRequest) {
-  try {
-    const decision = await aj.protect(req, {
-      userId: auth().userId || 'anonymous',
-      requested: 1,
-    })
-
-    if (decision.isDenied()) {
-      return NextResponse.json(
-        { error: 'Rate limit exceeded' },
-        { status: 429 }
-      )
-    }
-
-    const { userId } = auth()
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Mock data for demonstration
-    const interviews = [
-      {
-        id: '1',
-        jobRole: 'Software Engineer',
-        status: 'completed',
-        score: 85,
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: '2',
-        jobRole: 'Product Manager',
-        status: 'completed',
-        score: 78,
-        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      }
-    ]
-
-    return NextResponse.json({ interviews })
 
   } catch (error) {
-    console.error('Error fetching interviews:', error)
+    console.error('Avatar API error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
