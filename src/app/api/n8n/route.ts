@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs'
+import { auth } from '@clerk/nextjs/server' // 👈 Updated path for modern Clerk
 import { n8nWorkflow } from '@/lib/n8n'
 import aj from '@/lib/arcjet'
 
 export async function POST(req: NextRequest) {
   try {
+    // ─── AWAIT AUTH HANDSHAKE FOR MODERN CLERK CONTEXT ────────────────
+    const authObject = await auth()
+    const userId = authObject?.userId
+
     const decision = await aj.protect(req, {
-      userId: auth().userId || 'anonymous',
+      userId: userId || 'anonymous',
       requested: 1,
     })
 
@@ -17,7 +21,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { userId } = auth()
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
