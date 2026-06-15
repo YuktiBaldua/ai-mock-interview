@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server' // 👈 Updated path for modern Clerk
+import { auth } from '@clerk/nextjs/server'
 import { n8nWorkflow } from '@/lib/n8n'
 import aj from '@/lib/arcjet'
 
