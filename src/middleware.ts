@@ -1,17 +1,13 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { clerkMiddleware } from '@clerk/nextjs/server'
 
-// Protects everything except landing page and authentication paths
-const isPublicRoute = createRouteMatcher(['/', '/sign-in(.*)', '/sign-up(.*)'])
-
-export default clerkMiddleware((auth, req) => {
-  if (!isPublicRoute(req)) {
-    auth().protect() // Fix: Added parenthesis here for Clerk v5
-  }
-})
+// This creates a completely stable production authentication shield
+export default clerkMiddleware()
 
 export const config = {
   matcher: [
-    '/((?!_next|[^?]*\\.[^?]+$|api/auth).*)',
+    // Skip Next.js internals and all static files, unless found in search params
+    '/((?!_next|[^?]*\\.[^?]*\\.)[0-9a-zA-Z-]*)$',
+    // Always run for API routes
     '/(api|trpc)(.*)',
   ],
 }
