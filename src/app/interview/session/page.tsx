@@ -12,7 +12,10 @@ import {
   Clock,
   ArrowRight,
   Volume2,
-  Keyboard
+  VolumeX,
+  Keyboard,
+  Play,
+  Pause
 } from 'lucide-react'
 
 export default function InterviewSession() {
@@ -23,7 +26,13 @@ export default function InterviewSession() {
   const [timeElapsed, setTimeElapsed] = useState(0)
   const [isAvatarSpeaking, setIsAvatarSpeaking] = useState(false)
   const [userResponse, setUserResponse] = useState('') // Controlled input variable for typed answers
+  const userVideoRef = useRef<HTMLVideoElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
+  
+  const [isAvatarPlaying, setIsAvatarPlaying] = useState(false)
+  const [isAvatarMuted, setIsAvatarMuted] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const recognitionRef = useRef<any>(null)
 
   const questions = [
     "Tell me about yourself and your background.",
@@ -33,6 +42,35 @@ export default function InterviewSession() {
     "Where do you see yourself in 5 years?"
   ]
 
+  const speakQuestion = (text: string) => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel()
+      
+      const utterance = new SpeechSynthesisUtterance(text)
+      
+      // Pick a professional sounding voice if available
+      const voices = window.speechSynthesis.getVoices()
+      const voice = voices.find(v => v.lang.includes('en') && (v.name.includes('Google') || v.name.includes('Natural'))) 
+        || voices.find(v => v.lang.includes('en'))
+      
+      if (voice) {
+        utterance.voice = voice
+      }
+
+      utterance.onstart = () => {
+        setIsAvatarSpeaking(true)
+      }
+      utterance.onend = () => {
+        setIsAvatarSpeaking(false)
+      }
+      utterance.onerror = () => {
+        setIsAvatarSpeaking(false)
+      }
+
+      window.speechSynthesis.speak(utterance)
+    }
+  }
+
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeElapsed(prev => prev + 1)
@@ -41,18 +79,141 @@ export default function InterviewSession() {
     return () => clearInterval(timer)
   }, [])
 
+  // Auto-speak the question when currentQuestion changes
+  useEffect(() => {
+    speakQuestion(questions[currentQuestion])
+    return () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel()
+      }
+    }
+  }, [currentQuestion])
+
+  // Speech Recognition (Speech-to-Text) Initialization
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      if (SpeechRecognition) {
+        const rec = new SpeechRecognition()
+        rec.continuous = true
+        rec.interimResults = false
+        rec.lang = 'en-US'
+
+        rec.onresult = (event: any) => {
+          let transcript = ''
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              transcript += event.results[i][0].transcript + ' '
+            }
+          }
+          if (transcript) {
+            setUserResponse(prev => prev + transcript)
+          }
+        }
+
+        rec.onerror = (event: any) => {
+          console.error("Speech recognition error:", event.error)
+        }
+
+        recognitionRef.current = rec
+      }
+    }
+  }, [])
+
+  // Control speech recognition starting and stopping based on isRecording state
+  useEffect(() => {
+    if (recognitionRef.current) {
+      if (isRecording) {
+        try {
+          recognitionRef.current.start()
+        } catch (e) {
+          console.error("Failed to start speech recognition:", e)
+        }
+      } else {
+        try {
+          recognitionRef.current.stop()
+        } catch (e) {
+          console.error("Failed to stop speech recognition:", e)
+        }
+      }
+    }
+  }, [isRecording])
+
   useEffect(() => {
     // Initialize user camera
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         .then(stream => {
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream
+          setCameraError(null)
+          if (userVideoRef.current) {
+            userVideoRef.current.srcObject = stream
           }
         })
-        .catch(err => console.error('Error accessing camera:', err))
+        .catch(err => {
+          console.warn('Error accessing camera and audio, trying camera only:', err)
+          // Fallback to video only
+          navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+              setCameraError(null)
+              if (userVideoRef.current) {
+                userVideoRef.current.srcObject = stream
+              }
+            })
+            .catch(fallbackErr => {
+              console.error('Error accessing camera:', fallbackErr)
+              setCameraError('Permission Denied')
+            })
+        })
+    } else {
+      setCameraError('Not Supported')
     }
   }, [])
+
+  // Sync avatar video element state with React state on mount / load
+  useEffect(() => {
+    if (videoRef.current) {
+      setIsAvatarMuted(videoRef.current.muted)
+      setIsAvatarPlaying(!videoRef.current.paused)
+    }
+  }, [])
+
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        // Explicitly unmute and set full volume to bypass browser audio block
+        videoRef.current.muted = false
+        videoRef.current.volume = 1.0
+        setIsAvatarMuted(false)
+        videoRef.current.play()
+          .then(() => setIsAvatarPlaying(true))
+          .catch(err => console.error("Play failed:", err))
+        
+        // Also trigger the TTS speech
+        speakQuestion(questions[currentQuestion])
+      } else {
+        videoRef.current.pause()
+        setIsAvatarPlaying(false)
+        if (typeof window !== 'undefined') {
+          window.speechSynthesis.cancel()
+        }
+      }
+    }
+  }
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !videoRef.current.muted
+      setIsAvatarMuted(videoRef.current.muted)
+      if (!videoRef.current.muted) {
+        videoRef.current.volume = 1.0
+        speakQuestion(questions[currentQuestion])
+      } else {
+        if (typeof window !== 'undefined') {
+          window.speechSynthesis.cancel()
+        }
+      }
+    }
+  }
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -64,8 +225,6 @@ export default function InterviewSession() {
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(prev => prev + 1)
       setUserResponse('') // Clears the text box automatically for the next question
-      setIsAvatarSpeaking(true)
-      setTimeout(() => setIsAvatarSpeaking(false), 3000)
     } else {
       router.push('/interview/complete')
     }
@@ -109,7 +268,16 @@ export default function InterviewSession() {
               <div className="w-64 h-64 bg-gradient-to-br from-blue-400 to-purple-600 rounded-full flex items-center justify-center mb-6 relative">
                 {/* Placeholder for Akool Avatar */}
                 <div className="w-56 h-56 bg-black rounded-full flex items-center justify-center overflow-hidden">
-                  <video src="/avatar-loop.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                  <video 
+                    ref={videoRef} 
+                    src="/avatar-loop.mp4" 
+                    autoPlay 
+                    loop 
+                    playsInline 
+                    className="w-full h-full object-cover object-top" 
+                    onPlay={() => setIsAvatarPlaying(true)}
+                    onPause={() => setIsAvatarPlaying(false)}
+                  />
                 </div>
                 
                 {/* Speaking indicator */}
@@ -131,9 +299,20 @@ export default function InterviewSession() {
             </div>
 
             {/* Audio Controls */}
-            <div className="flex justify-center mt-4">
-              <button className="bg-white/20 hover:bg-white/30 text-white p-3 rounded-full transition-colors">
-                <Volume2 className="h-6 w-6" />
+            <div className="flex justify-center space-x-4 mt-4">
+              <button 
+                onClick={togglePlay}
+                className="bg-white/20 hover:bg-white/30 text-white p-3 rounded-full transition-colors"
+                title={isAvatarPlaying ? "Pause Avatar" : "Play Avatar"}
+              >
+                {isAvatarPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+              </button>
+              <button 
+                onClick={toggleMute}
+                className="bg-white/20 hover:bg-white/30 text-white p-3 rounded-full transition-colors"
+                title={isAvatarMuted ? "Unmute Avatar" : "Mute Avatar"}
+              >
+                {isAvatarMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
               </button>
             </div>
           </div>
@@ -181,13 +360,23 @@ export default function InterviewSession() {
             <div className="bg-white/95 rounded-2xl p-4 shadow-xl">
               <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden relative">
                 <video
-                  ref={videoRef}
+                  ref={userVideoRef}
                   autoPlay
                   muted
                   className="w-full h-full object-cover"
                 />
                 
-                {!isVideoOn && (
+                {cameraError && (
+                  <div className="absolute inset-0 bg-gray-950 flex flex-col items-center justify-center p-6 text-center z-10">
+                    <VideoOff className="h-12 w-12 text-red-500 mb-3" />
+                    <span className="text-white text-base font-semibold mb-2">Camera Access Blocked</span>
+                    <p className="text-gray-400 text-sm max-w-sm">
+                      Please check the address bar or browser settings to allow camera access, then reload the page.
+                    </p>
+                  </div>
+                )}
+                
+                {!isVideoOn && !cameraError && (
                   <div className="absolute inset-0 bg-gray-800 flex items-center justify-center">
                     <VideoOff className="h-12 w-12 text-gray-400" />
                   </div>
