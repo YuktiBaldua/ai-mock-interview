@@ -21,7 +21,7 @@ export default function Analytics() {
   ]
 
   return (
-    <SignedIn>
+  
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <header className="bg-white border-b">
@@ -32,7 +32,9 @@ export default function Analytics() {
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
             </div>
-            <UserButton />
+            <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs shadow-sm select-none">
+  Y
+</div>
           </div>
         </header>
 
@@ -159,6 +161,6 @@ export default function Analytics() {
           </div>
         </div>
       </div>
-    </SignedIn>
+    
   )
 }

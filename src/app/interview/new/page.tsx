@@ -83,7 +83,6 @@ export default function NewInterview() {
   }
 
   return (
-    <SignedIn>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
         {/* Header */}
         <header className="bg-white border-b">
@@ -268,6 +267,6 @@ export default function NewInterview() {
           </div>
         </div>
       </div>
-    </SignedIn>
+   
   )
 }

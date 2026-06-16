@@ -66,7 +66,7 @@ export default function InterviewHistory() {
   }
 
   return (
-    <SignedIn>
+ 
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <header className="bg-white border-b">
@@ -84,7 +84,10 @@ export default function InterviewHistory() {
                   <span>New Interview</span>
                 </button>
               </Link>
-              <UserButton />
+       
+<div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs shadow-sm select-none">
+  Y
+</div>
             </div>
           </div>
         </header>
@@ -199,6 +202,6 @@ export default function InterviewHistory() {
           </div>
         </div>
       </div>
-    </SignedIn>
+
   )
 }
